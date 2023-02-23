@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "auth-service", 
+    "frontend",
+    "blog-service",
+    "common-utils",
+    "comments",
+    # "blog_ingestion_service"
+]

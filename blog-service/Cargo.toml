@@ -1,0 +1,35 @@
+[package]
+name = "blog-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix = "0.13.0"
+actix-web = "4.0.1"
+actix-web-lab = "0.16.1"
+actix-cors = "0.6"
+async-graphql = { version = "3.0.37", features = ["apollo_tracing"] }
+async-graphql-actix-web = "3.0.37"
+env_logger = "0.9"
+log = "0.4"
+slab = "0.4.2"
+diesel = { version = "1.4.8", features = ["postgres", "uuid", "r2d2", "chrono", "numeric"] }
+diesel-derive-enum = { version = "1.1.1", features = ["postgres"] }
+diesel_full_text_search = "1.0.1"
+dotenv = "0.15.0"
+failure = "0.1.8"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+diesel_migrations = "1.4.0"
+chrono = { version = "0.4", features = ["serde"] }
+argonautica = "0.2.0"
+lazy_static = "1.4.0"
+uuid = {version = "1.0.0", features = ["serde","v4"]}
+common-utils = { path ="../common-utils" } 
+rdkafka = { version = "0.28.0", features = ["cmake-build"] }
+futures = "0.3.21"
+redis = { version = "0.21.5", features = ["tokio-comp", "connection-manager"] }
+derive_more = "0.99.17"

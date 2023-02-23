@@ -1,0 +1,159 @@
+version: "3.9"
+services:
+#  Blog Service -------------------------------------------
+  blog-service:
+    image: apollo/blog_service:latest
+    container_name: blog-service
+    restart: always
+    depends_on:
+      - blog-db
+    environment: 
+      DATABASE_URL: postgres://$POSTGRES_USER:$BLOG_PASSWORD@localhost/blogservice
+      PORT: 8080
+      JWT_SECRET_KEY: $JWT_SECRET_KEY
+      PASSWORD_SECRET_KEY: $PASSWORD_SECRET_KEY
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_TOPIC: $KAFKA_TOPIC
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    ports: 
+      - 8080:8080
+  blog-db:
+    image: postgres:13.2-alpine
+    container_name: blog-db 
+    restart: always
+    environment:
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_DB: $BLOG_DB
+      POSTGRES_PASSWORD: $BLOG_PASSWORD
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1m
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+#  authentication service -----------------------------------
+  auth-service: 
+    image: apollo/auth_service:latest
+    container_name: auth-service
+    restart: always
+    depends_on: 
+      - user_db 
+    environment:
+      DATABASE_URL: postgres://$POSTGRES_USER:$AUTH_PASSWORD@localhost/authservice
+      JWT_SECRET_KEY: $JWT_SECRET_KEY
+      PASSWORD_SECRET_KEY: $PASSWORD_SECRET_KEY
+      PORT: $AUTH_PORT
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    ports:
+      - $AUTH_PORT:8081
+  user_db: 
+    image: postgres:13.2-alpine
+    container_name: user_db 
+    restart: always
+    environment:
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_DB_HOST: $POSTGRES_DB_HOST
+      POSTGRES_DB: $AUTH_DB
+      POSTGRES_PASSWORD: $AUTH_PASSWORD
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+
+  # Apollo Server -------------------------------------------
+  apollo-gateway:
+    image: apollo/gateway:lateway
+    container_name: apollo_gateway
+    restart: always
+    depends_on:
+      - auth-service 
+      - blog-service 
+    environment:
+      NODE_ENV: docker 
+    ports:
+      - 4000:4000
+  # Kafka -------------------------------------------
+  kafka: 
+    image: wurstmeister/kafka
+    container_name: kafka 
+    restart: always
+    depends_on: 
+      - zookeeper
+    environment: 
+      KAFKA_ADVERTISED_HOST_NAME: kafka 
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "$KAFKA_TOPIC:1.1"
+    ports: 
+      -  3333:3333
+  zookeeper: 
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    restart: always 
+    healthcheck:
+      test: [ "CMD", "nc", "-vz", "localhost", "2181" ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    ports:
+      - 2181:2181
+  # --------------Monitoring-----------------------
+  prometheus: 
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+    command: 
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.external-url=http://localhost:9090'
+# 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - 3000:3000
+    volumes:
+      - ./monitoring/grafana/data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER: admin
+      - GF_SECURITY_ADMIN_PASSWORD: admin
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor 
+    restart: always
+    ports: 
+      - 3001:3001
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - 3002:3002
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--web.external-url=http://localhost:3002'
